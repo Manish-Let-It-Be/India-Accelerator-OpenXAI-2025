@@ -7,40 +7,40 @@ export default function Home() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<string | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setSelectedImage(e.target?.result as string)
-        setAnalysis(null)
-      }
-      reader.readAsDataURL(file)
+      setSelectedFile(file)
+      setPreviewUrl(URL.createObjectURL(file)) // local preview
+      setAnalysis(null)
     }
   }
 
   const analyzeImage = async () => {
-    if (!selectedImage) return
+    if (!selectedFile) return
     
     setIsAnalyzing(true)
     try {
-      const response = await fetch('/api/analyze-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ image: selectedImage }),
-      })
-      
-      const data = await response.json()
-      setAnalysis(data.analysis)
-    } catch (error) {
-      console.error('Error analyzing image:', error)
-      setAnalysis('Error analyzing image. Please try again.')
-    } finally {
-      setIsAnalyzing(false)
-    }
+    const formData = new FormData()
+    formData.append("image", selectedFile)
+
+    const response = await fetch('/api/analyze-image', {
+      method: 'POST',
+      body: formData, // ✅ browser sets Content-Type automatically
+    })
+    
+    const data = await response.json()
+    setAnalysis(data.analysis)
+  } catch (error) {
+    console.error('Error analyzing image:', error)
+    setAnalysis('Error analyzing image. Please try again.')
+  } finally {
+    setIsAnalyzing(false)
+  }
   }
 
   return (
@@ -59,9 +59,9 @@ export default function Home() {
             <div className="space-y-4">
               <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-white/30 border-dashed rounded-lg cursor-pointer hover:bg-white/5">
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  {selectedImage ? (
+                  {previewUrl ? (
                     <img 
-                      src={selectedImage} 
+                      src={previewUrl} 
                       alt="Selected" 
                       className="max-h-48 max-w-full rounded-lg"
                     />
@@ -83,7 +83,7 @@ export default function Home() {
                 />
               </label>
               
-              {selectedImage && (
+              {selectedFile && (
                 <button
                   onClick={analyzeImage}
                   disabled={isAnalyzing}
